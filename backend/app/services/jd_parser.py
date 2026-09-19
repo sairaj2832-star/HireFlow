@@ -12,12 +12,14 @@ SOFT_HINTS = {"nice to have", "preferred", "plus", "bonus"}
 def _split_bullets(jd_text: str) -> list[str]:
     lines = [line.strip() for line in jd_text.splitlines() if line.strip()]
     bullets: list[str] = []
+    no_bullet_markers_yet = True
     for line in lines:
         m = BULLET_RE.match(line)
         if m:
             bullets.append(m.group(1).strip())
-        elif len(line) > 12:
-            # plain (non-bullet) long line is also a requirement in plain JD
+            no_bullet_markers_yet = False
+        elif no_bullet_markers_yet and len(line) > 12:
+            # plain (non-bullet) long line is also a requirement in plain JD (only while no bullet markers seen)
             bullets.append(line)
     # fallback: split on commas/semicolons if no bullets found
     if not bullets:
@@ -36,12 +38,19 @@ def _split_bullets(jd_text: str) -> list[str]:
 
 def _gate_for(text: str, jd_lower: str) -> Literal["hard", "soft"]:
     t = text.lower()
+    # jd-wide HARD_HINTS prefix first (first line only, before bullets)
+    first_line = jd_lower.splitlines()[0].strip() if jd_lower.splitlines() else ""
+    if any(h in first_line for h in HARD_HINTS):
+        return "hard"
+    # per-req "must"
+    if "must" in t:
+        return "hard"
+    # per-req HARD_HINTS
+    if any(h in t for h in HARD_HINTS):
+        return "hard"
+    # per-req SOFT_HINTS
     if any(h in t for h in SOFT_HINTS):
         return "soft"
-    if any(h in t for h in HARD_HINTS) or "must" in t:
-        return "hard"
-    if any(h in jd_lower[:400].lower() for h in HARD_HINTS):
-        return "hard"
     return "soft"
 
 def parse_jd(jd_text: str, job_id: str | None = None) -> list[Requirement]:

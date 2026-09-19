@@ -1,0 +1,26 @@
+# python
+.venv/
+__pycache__/
+*.pyc
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# sqlite + ledger (materialized is gitignored, seed is tracked)
+hireflow.db
+hireflow.db-*
+backend/artifacts/journal.jsonl
+backend/artifacts/*.db
+!backend/artifacts/seed/.gitkeep
+
+# node
+node_modules/
+frontend/dist/
+
+# secrets
+.env
+.env.local
+
+# os
+.DS_Store
+Thumbs.db

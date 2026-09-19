@@ -6,13 +6,14 @@
 
 ## Source of truth (read before coding)
 
-1. `MASTER.md` — living source of truth (frozen §§38/39/40/58/59/63/64)
-2. `HireFlow_Architecture_Design_Report.md` — normative §§1-23
-3. `hireflow_research.md` — evidence base only, cite by §
+1. `docs/MASTER.md` — living source of truth (frozen §§38/39/40/58/59/63/64)
+2. `docs/HireFlow_Architecture_Design_Report.md` — normative §§1-23
+3. `docs/hireflow_research.md` — evidence base only, cite by §
 4. `AGENTS.md` — repo rules for coding agents
 5. `docs/superpowers/plans/2026-09-20-B0-Foundation.md` — B0 build plan
+6. `docs/implementation-logs/B0.md` — B0 build log (deviations + outputs)
 
-`MASTER.md` wins on conflicts (Report §2.1).
+`docs/MASTER.md` wins on conflicts (Report §2.1).
 
 ## Quickstart (B0)
 

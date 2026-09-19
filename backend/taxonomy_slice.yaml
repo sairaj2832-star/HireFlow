@@ -1,0 +1,24 @@
+# ESCO slice — B0 stub 20 skills, B1 expands to ~200 (Report §13.5).
+# Full ESCO v1.2.1 (13,485 skills) deferred post-MVP. Synthetic labels only.
+version: "esco-v1.2.1-slice-b0"
+skills:
+  - {id: "esco:python", label: "Python", aliases: ["py"]}
+  - {id: "esco:fastapi", label: "FastAPI", aliases: []}
+  - {id: "esco:ml", label: "Machine Learning", aliases: ["ML"]}
+  - {id: "esco:react", label: "React", aliases: ["React.js"]}
+  - {id: "esco:typescript", label: "TypeScript", aliases: ["TS"]}
+  - {id: "esco:sql", label: "SQL", aliases: []}
+  - {id: "esco:docker", label: "Docker", aliases: []}
+  - {id: "esco:kubernetes", label: "Kubernetes", aliases: ["k8s"]}
+  - {id: "esco:aws", label: "AWS", aliases: ["Amazon Web Services"]}
+  - {id: "esco:pytorch", label: "PyTorch", aliases: []}
+  - {id: "esco:tensorflow", label: "TensorFlow", aliases: ["TF"]}
+  - {id: "esco:git", label: "Git", aliases: []}
+  - {id: "esco:rest", label: "REST APIs", aliases: ["REST"]}
+  - {id: "esco:graphql", label: "GraphQL", aliases: []}
+  - {id: "esco:ci-cd", label: "CI/CD", aliases: ["continuous integration"]}
+  - {id: "esco:pytest", label: "pytest", aliases: []}
+  - {id: "esco:linux", label: "Linux", aliases: []}
+  - {id: "esco:redis", label: "Redis", aliases: []}
+  - {id: "esco:postgres", label: "PostgreSQL", aliases: ["Postgres"]}
+  - {id: "esco:tailwind", label: "Tailwind CSS", aliases: ["Tailwind"]}

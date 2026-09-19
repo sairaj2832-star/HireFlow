@@ -1,0 +1,21 @@
+# policy.yaml — B0 provisional (benchmark-owned per MASTER §54, Report §7).
+# Thresholds are placeholders; benchmark must validate before production truth.
+version: "0.1.0-b0"
+thresholds:
+  SUPPORTED: 0.75
+  NEEDS_VALIDATION: 0.45
+weights:
+  python: 0.25
+  fastapi: 0.20
+  ml: 0.15
+  degree: 0.10
+  experience: 0.30
+caps:
+  cap: 1.0
+brakes:
+  needs_review_band: [0.35, 0.65]
+  suspect_conf_threshold: 0.5
+  high_weight_threshold: 0.5
+loop:
+  max_steps: 12
+  retries: 1

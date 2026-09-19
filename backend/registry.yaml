@@ -1,0 +1,19 @@
+# registry.yaml — CapabilityRegistry catalog, MASTER §9 shape.
+# Describes capabilities; never executes. Custom loop migrates behind this seam.
+version: "0.1.0-b0"
+capabilities:
+  - {name: intake, purpose: "JD/resume ingest", risk: low, latency_ms: 50, cost: 0, permissions: []}
+  - {name: cleanser, purpose: "BRAKE1 cleanse", risk: low, latency_ms: 200, cost: 0, permissions: []}
+  - {name: parser, purpose: "parse+normalize", risk: medium, latency_ms: 3000, cost: 0.005, permissions: []}
+  - {name: ledger, purpose: "append-only event log", risk: low, latency_ms: 5, cost: 0, permissions: []}
+  - {name: registry, purpose: "capability catalog", risk: low, latency_ms: 1, cost: 0, permissions: []}
+  - {name: orchestrator, purpose: "single Primary loop", risk: medium, latency_ms: 100, cost: 0, permissions: []}
+  - {name: req-extractor, purpose: "JD to REQ-01..N", risk: medium, latency_ms: 2000, cost: 0.002, permissions: []}
+  - {name: jev_scorer, purpose: "per-req judgment", risk: medium, latency_ms: 1500, cost: 0.001, permissions: []}
+  - {name: verifier, purpose: "BRAKE2 fuzzy+anomaly", risk: low, latency_ms: 50, cost: 0, permissions: []}
+  - {name: bias_probe, purpose: "decoupled bias logging", risk: low, latency_ms: 100, cost: 0, permissions: []}
+  - {name: qg, purpose: "gap-conditioned questions", risk: medium, latency_ms: 2000, cost: 0.002, permissions: []}
+  - {name: retriever, purpose: "hybrid FTS5+FAISS", risk: low, latency_ms: 300, cost: 0, permissions: []}
+  - {name: approval_queue, purpose: "BRAKE3 human gates", risk: high, latency_ms: 0, cost: 0, permissions: ["human_approval"]}
+  - {name: renderer, purpose: "cited report render", risk: medium, latency_ms: 2000, cost: 0.002, permissions: []}
+  - {name: nlq, purpose: "read-only NL queries", risk: medium, latency_ms: 2500, cost: 0.002, permissions: []}

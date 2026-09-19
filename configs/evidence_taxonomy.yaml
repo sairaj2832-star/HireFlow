@@ -1,0 +1,3 @@
+# evidence_taxonomy.yaml — MASTER §55 + UNANSWERED/STALE (Report §13.5).
+grades: [DIRECT, INFERRED, MISSING, UNCLEAR, CONTRADICTED, VALIDATED_IN_INTERVIEW, HUMAN_CONFIRMED]
+uncertainty: [UNANSWERED, STALE, none, unanswered, conflicting, unverifiable, stale]

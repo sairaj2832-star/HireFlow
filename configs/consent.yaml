@@ -1,0 +1,6 @@
+# consent.yaml — synthetic-only MVP (Report §10 DQ14).
+synthetic-only: true
+tiers: [L0_application, L1_pool, L2_enrichment, L3_interview, L4_audit]
+retention_days: 365
+clocks: {purge: "daily", sar: "30d", breach_co: "90d", breach_in: "72h"}
+note: "Synthetic/anonymized only — non-representative, declared at intake"

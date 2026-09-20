@@ -25,9 +25,6 @@ frontend/dist/
 # dataset (large test data, not part of application)
 dataset/
 
-# benchmark artifacts
-backend/artifacts/benchmark/results.json
-
 # os
 .DS_Store
 Thumbs.db

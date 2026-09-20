@@ -75,9 +75,9 @@ export function IntakePage() {
           <h2 className="text-lg font-medium">Requirements (REQ-01..N)</h2>
           <ul className="space-y-2">
             {job.requirements.map((r) => (
-              <li key={r.id} className="text-sm border-l-2 pl-3 {r.gate === 'hard' ? 'border-red-500' : 'border-gray-400'}">
-                <span className="font-mono text-blue-700">{r.id}</span>: {r.text}
-                <span className="ml-2 px-1.5 py-0.5 text-xs rounded {r.gate === 'hard' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}">
+<li key={r.id} className={`text-sm border-l-2 pl-3 ${r.gate === 'hard' ? 'border-red-500' : 'border-gray-400'}`}>
+                 <span className="font-mono text-blue-700">{r.id}</span>: {r.text}
+                 <span className={`ml-2 px-1.5 py-0.5 text-xs rounded ${r.gate === 'hard' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}`}>
                   {r.gate}
                 </span>
                 <span className="ml-2 text-xs text-gray-500">w={r.weight}</span>

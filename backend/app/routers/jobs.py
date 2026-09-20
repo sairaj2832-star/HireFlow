@@ -55,6 +55,15 @@ async def create_job(request: Request) -> dict[str, Any]:
     return {"job_id": job_id, "run_id": run_id, "requirements": _JOBS[job_id]["requirements"]}
 
 
+@router.get("")
+def list_jobs() -> list[dict[str, Any]]:
+    """List all jobs for the dashboard."""
+    return [
+        {"job_id": jid, "run_id": data["run_id"], "requirements": data["requirements"]}
+        for jid, data in _JOBS.items()
+    ]
+
+
 @router.get("/{job_id}")
 def get_job(job_id: str) -> dict[str, Any]:
     if job_id not in _JOBS:

@@ -1,0 +1,11 @@
+{
+  "n_candidates": 40,
+  "needs_review_rate": 0.875,
+  "verified_rate": 0.5,
+  "classifier_kind": "llm",
+  "latency_p50_ms": 0.317600000926177,
+  "latency_p95_ms": 0.4817000008188188,
+  "cost_usd": null,
+  "policy_version": "0.1.0-b0",
+  "cohort_count": 1
+}

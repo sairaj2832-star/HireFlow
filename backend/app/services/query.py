@@ -16,7 +16,13 @@ def nl_query(job_id: str, filter_field: str, value: str,
         cid = e.get("candidate_id")
         if not cid:
             continue
-        if filter_field == "tier" and str(e.get("tier", "")) == value:
+        if filter_field == "all":
+            results.append({
+                "candidate_id": cid,
+                "score": float(e.get("composite", 0.0)),
+                "tier": e.get("tier", ""),
+            })
+        elif filter_field == "tier" and str(e.get("tier", "")) == value:
             results.append({
                 "candidate_id": cid,
                 "score": float(e.get("composite", 0.0)),

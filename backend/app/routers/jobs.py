@@ -126,3 +126,27 @@ def shortlist(job_id: str) -> dict[str, Any]:
         "ranked": [{k: c[k] for k in ("candidate_id", "tier", "composite", "needs_review", "per_req")}
                    for c in ranked],
     }
+
+
+@router.get("/{job_id}/report")
+def get_report(job_id: str) -> dict[str, Any]:
+    if job_id not in _JOBS:
+        raise HTTPException(404, "job not found")
+    from app.services.renderer import render_report
+    return render_report(job_id)
+
+
+@router.get("/{job_id}/query")
+def get_query(job_id: str, filter: str = "tier", value: str = "") -> dict[str, Any]:
+    if job_id not in _JOBS:
+        raise HTTPException(404, "job not found")
+    from app.services.query import nl_query
+    return nl_query(job_id, filter, value)
+
+
+@router.get("/{job_id}/audit-pack")
+def get_audit_pack(job_id: str) -> dict[str, Any]:
+    if job_id not in _JOBS:
+        raise HTTPException(404, "job not found")
+    from app.services.audit import build_audit_pack
+    return build_audit_pack(job_id)

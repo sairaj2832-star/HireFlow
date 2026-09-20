@@ -19,7 +19,7 @@ def test_build_cohorts_group_strong_shared_missing():
     ]
     cohorts = build_cohorts(results, job_id="job_x", policy_version="0.1.0-b0")
     labels = [c["predicate"]["label"] for c in cohorts]
-    assert any("REQ-01" in l and "REQ-02" in l for l in labels)
+    assert any("REQ-01" in label and "REQ-02" in label for label in labels)
     big = [c for c in cohorts if c["predicate"]["label"] ==
            "strong_on:REQ-01,REQ-02_missing:REQ-03"]
     assert len(big) == 1

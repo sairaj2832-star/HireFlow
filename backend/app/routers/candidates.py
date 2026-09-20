@@ -1,6 +1,7 @@
 # backend/app/routers/candidates.py
 from typing import Any
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field
 
 router = APIRouter(prefix="/candidates", tags=["candidates"])
 
@@ -26,7 +27,7 @@ def _evidence_boxes(cand: dict[str, Any]) -> list[dict[str, Any]]:
     for v in cand["per_req"]:
         boxes.append({
             "req": v["requirement_id"],
-            "span": {"quote": "verified quote", "page": 1, "line": 1},  # B3 wires real loc
+            "span": {"quote": "verified quote", "page": 1, "line": 1},
             "judgment": {"p": v["p"], "confidence": v["confidence"], "grade": v["grade"]},
             "state": "VERIFIED" if v.get("needs_review") is False else "NEEDS_REVIEW",
             "conf": v["confidence"],
@@ -53,3 +54,36 @@ def get_evidence(candidate_id: str) -> dict[str, Any]:
         raise HTTPException(404, "candidate not screened")
     return {"candidate_id": candidate_id, "run_id": hit["run_id"],
             "boxes": _evidence_boxes(hit["candidate"])}
+
+
+@router.post("/{candidate_id}/questions")
+def post_questions(candidate_id: str) -> dict[str, Any]:
+    hit = _latest_screen(candidate_id)
+    if hit is None:
+        raise HTTPException(404, "candidate not found or not screened")
+    from app.routers.jobs import _JOBS
+    from app.services.qg import generate_questions
+    requirements = _JOBS.get(hit["job_id"], {}).get("requirements", [])
+    try:
+        questions = generate_questions(candidate_id, requirements, [])
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    return {"candidate_id": candidate_id, "questions": questions}
+
+
+class InterviewNoteRequest(BaseModel):
+    note: str = Field(min_length=1)
+
+
+@router.post("/{candidate_id}/interview-notes")
+def post_interview_notes(candidate_id: str, payload: InterviewNoteRequest) -> dict[str, str]:
+    hit = _latest_screen(candidate_id)
+    if hit is None:
+        raise HTTPException(404, "candidate not found")
+    run_id = hit.get("run_id") or "interview_note"
+    from app.services.interview import add_interview_note
+    try:
+        result = add_interview_note(candidate_id, payload.note, run_id)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    return {"note_id": result["note_id"], "status": "recorded"}

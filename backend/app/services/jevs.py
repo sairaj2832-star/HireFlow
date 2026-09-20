@@ -217,9 +217,13 @@ class LLMStructuredFallback:
             return self._seeded(state, questions)
 
     def _seeded(self, state: str, questions: dict[str, str]) -> dict[str, Judgement]:
+        t0 = time.perf_counter()
         keywords = [tok.strip(".,:;()[]{}\"'") for tok in state.lower().split()]
-        return {qid: seeded_judgement(qid, text, [k for k in keywords if len(k) > 2], 0.5)
-                for qid, text in questions.items()}
+        out = {qid: seeded_judgement(qid, text, [k for k in keywords if len(k) > 2], 0.5)
+               for qid, text in questions.items()}
+        METRICS.add({"kind": self.kind, "latency_ms": (time.perf_counter() - t0) * 1000,
+                     "cost": None, "questions": len(questions)})
+        return out
 
 
 def make_classifier() -> Classifier:

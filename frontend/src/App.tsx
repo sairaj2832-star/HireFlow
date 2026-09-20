@@ -2,10 +2,14 @@ import { useEffect, useState } from "react";
 import { Route, Routes } from "react-router-dom";
 import { health } from "./lib/api";
 import { IntakePage } from "./pages/IntakePage";
-
-function Placeholder({ name }: { name: string }) {
-  return <h1>{name}</h1>;
-}
+import { DashboardPage } from "./pages/DashboardPage";
+import { ShortlistPage } from "./pages/ShortlistPage";
+import { CandidateDetailPage } from "./pages/CandidateDetailPage";
+import { EvidencePage } from "./pages/EvidencePage";
+import { InterviewPage } from "./pages/InterviewPage";
+import { ReportPage } from "./pages/ReportPage";
+import { QueryPage } from "./pages/QueryPage";
+import { AuditPage } from "./pages/AuditPage";
 
 export default function App() {
   const [backend, setBackend] = useState<string>("checking…");
@@ -25,19 +29,21 @@ export default function App() {
   }, []);
 
   return (
-    <div className="p-4">
-      <header className="mb-4">
-        <span className="text-sm text-gray-600">HireFlow B1 — backend: {backend}</span>
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-white border-b px-4 py-2 flex items-center justify-between">
+        <span className="font-semibold text-gray-800">HireFlow</span>
+        <span className="text-xs text-gray-500">backend: {backend}</span>
       </header>
       <Routes>
         <Route path="/" element={<IntakePage />} />
-        <Route path="/jd" element={<Placeholder name="jd" />} />
-        <Route path="/candidates/:id" element={<Placeholder name="candidate-detail" />} />
-        <Route path="/interview" element={<Placeholder name="interview" />} />
-        <Route path="/query" element={<Placeholder name="query" />} />
-        <Route path="/audit" element={<Placeholder name="audit" />} />
-        <Route path="/policy" element={<Placeholder name="policy" />} />
-        <Route path="/approvals" element={<Placeholder name="approvals" />} />
+        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/shortlist/:jobId" element={<ShortlistPage />} />
+        <Route path="/candidates/:candidateId" element={<CandidateDetailPage />} />
+        <Route path="/evidence/:candidateId" element={<EvidencePage />} />
+        <Route path="/interview/:candidateId" element={<InterviewPage />} />
+        <Route path="/report/:jobId" element={<ReportPage />} />
+        <Route path="/query/:jobId" element={<QueryPage />} />
+        <Route path="/audit/:jobId" element={<AuditPage />} />
       </Routes>
     </div>
   );

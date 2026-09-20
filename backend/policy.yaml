@@ -16,6 +16,7 @@ brakes:
   needs_review_band: [0.35, 0.65]
   suspect_conf_threshold: 0.5
   high_weight_threshold: 0.5
+  fuzzy_ratio: 0.85
 loop:
   max_steps: 12
   retries: 1

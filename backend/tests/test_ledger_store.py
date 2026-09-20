@@ -54,3 +54,33 @@ def test_prev_hash_chain():
         store.append({"type": "X", "id": "2"})
         evts = store.get_events()
         assert evts[1]["prev_hash"] == h1
+
+
+def test_concurrent_appends_keep_chain_linear(tmp_path):
+    from concurrent.futures import ThreadPoolExecutor
+    import threading
+
+    from app.db.ledger_store import LedgerStore
+
+    store = LedgerStore(db_path=tmp_path / "t.db", journal_path=tmp_path / "j.jsonl")
+
+    n = 16
+    start = threading.Event()
+
+    def one(i: int) -> str:
+        start.wait()
+        return store.append({"type": "TEST_PARALLEL", "i": i})
+
+    with ThreadPoolExecutor(max_workers=n) as ex:
+        futures = [ex.submit(one, i) for i in range(n)]
+        start.set()
+        hashes = [f.result() for f in futures]
+
+    reopened = LedgerStore(db_path=tmp_path / "t.db", journal_path=tmp_path / "j.jsonl")
+    evts = [e for e in reopened.get_events() if e["type"] == "TEST_PARALLEL"]
+    assert len(evts) == n
+    assert evts[0]["prev_hash"] is None
+    for i in range(1, n):
+        assert evts[i]["prev_hash"] == evts[i - 1]["event_hash"]
+    assert len({e["event_hash"] for e in evts}) == n
+    assert all(h for h in hashes)

@@ -3,12 +3,15 @@
 import hashlib
 import json
 import sqlite3
+import threading
 from pathlib import Path
 from typing import Any, Union
 
 from app.db.migrate import DEFAULT_DB, migrate
 
 DEFAULT_JOURNAL = Path(__file__).resolve().parents[2] / "artifacts" / "journal.jsonl"
+
+_LEDGER_LOCK = threading.Lock()
 
 
 def _hash(prev: Union[str, None], canonical: str) -> str:
@@ -37,18 +40,19 @@ class LedgerStore:
         canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
         con = sqlite3.connect(str(self.db_path))
         try:
-            prev = self._last_hash(con)
-            h = _hash(prev, canonical)
-            enriched = {**payload, "event_hash": h, "prev_hash": prev}
-            line = json.dumps(enriched, sort_keys=True, separators=(",", ":"))
-            con.execute(
-                "INSERT INTO ledger_events (event_hash, prev_hash, canonical_json)"
-                " VALUES (?,?,?)",
-                (h, prev, line),
-            )
-            con.commit()
-            with open(self.journal_path, "a", encoding="utf-8") as f:
-                f.write(line + "\n")
+            with _LEDGER_LOCK:
+                prev = self._last_hash(con)
+                h = _hash(prev, canonical)
+                enriched = {**payload, "event_hash": h, "prev_hash": prev}
+                line = json.dumps(enriched, sort_keys=True, separators=(",", ":"))
+                con.execute(
+                    "INSERT INTO ledger_events (event_hash, prev_hash, canonical_json)"
+                    " VALUES (?,?,?)",
+                    (h, prev, line),
+                )
+                con.commit()
+                with open(self.journal_path, "a", encoding="utf-8") as f:
+                    f.write(line + "\n")
             return h
         finally:
             con.close()

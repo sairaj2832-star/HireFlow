@@ -53,6 +53,9 @@ def ingest_resume(job_id: str, run_id: str, candidate_id: str, raw: bytes, filen
                 extracted = "\n".join(p.get_text() for p in doc) or extracted
         except Exception:
             pass
+    uploads = Path(__file__).resolve().parents[2] / "artifacts" / "uploads"
+    uploads.mkdir(parents=True, exist_ok=True)
+    (uploads / f"{candidate_id}.txt").write_text(extracted, encoding="utf-8", errors="ignore")
     cr = cleanse_upload(filename, mime, raw, extracted)
     if cr.verdict == "blocked":
         raise ValueError("blocked: executable or policy violation")

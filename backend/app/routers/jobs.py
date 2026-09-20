@@ -7,6 +7,7 @@ from app.services.intake import ingest_jd, ingest_resume
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 _JOBS: dict[str, dict[str, Any]] = {}  # B1 in-memory; B2 moves to SQLite materialization
+_SCREENS: dict[str, dict[str, Any]] = {}  # job_id -> latest screen result (B2 in-memory; B6 materializes)
 
 
 class CreateJobJson(BaseModel):
@@ -92,3 +93,36 @@ def ingest_candidates(job_id: str, files: list[UploadFile] = File(...)) -> dict[
         if out["quarantined"]:
             quarantined.append(cid)
     return {"candidate_ids": candidate_ids, "quarantined": quarantined}
+
+
+@router.post("/{job_id}/screen", status_code=201)
+async def screen_job(job_id: str) -> dict[str, Any]:
+    if job_id not in _JOBS:
+        raise HTTPException(404, "job not found")
+    from app.services.screening import run_screen
+    try:
+        res = await run_screen(job_id)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    _SCREENS[job_id] = {k: res[k] for k in ("run_id", "needs_review_rate", "verified_rate",
+                                            "classifier_kind", "policy_hash", "policy_version")}
+    _SCREENS[job_id]["candidates"] = res["candidates"]
+    _SCREENS[job_id]["cohorts"] = res["cohorts"]
+    return {"run_id": res["run_id"]}
+
+
+@router.get("/{job_id}/shortlist")
+def shortlist(job_id: str) -> dict[str, Any]:
+    if job_id not in _JOBS:
+        raise HTTPException(404, "job not found")
+    if job_id not in _SCREENS:
+        raise HTTPException(404, "job not yet screened")
+    s = _SCREENS[job_id]
+    ranked = sorted(s["candidates"], key=lambda c: c["composite"], reverse=True)
+    return {
+        "run_id": s["run_id"], "job_id": job_id, "version": 1,
+        "needs_review_rate": s["needs_review_rate"],
+        "cohorts": s["cohorts"],
+        "ranked": [{k: c[k] for k in ("candidate_id", "tier", "composite", "needs_review", "per_req")}
+                   for c in ranked],
+    }

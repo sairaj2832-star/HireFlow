@@ -4,7 +4,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import jobs
+from app.routers import candidates, jobs
 
 app = FastAPI(title="HireFlow", version="0.1.0")
 
@@ -17,6 +17,7 @@ app.add_middleware(
 )
 
 app.include_router(jobs.router)
+app.include_router(candidates.router)
 
 
 def _wal_mode() -> str:

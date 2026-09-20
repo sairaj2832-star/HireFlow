@@ -4,6 +4,8 @@ import time
 from typing import Any
 import httpx
 
+from pydantic import ValidationError
+
 from app.config import settings
 from app.models.classifier import Judgement, Classifier, ClassifierUnavailable
 
@@ -92,9 +94,9 @@ class JevClassifier:
             raise ClassifierUnavailable(f"jev http {resp.status_code}")
         try:
             data = resp.json()["judgements"]
-        except (ValueError, KeyError) as exc:
+            return {qid: Judgement(**j) for qid, j in data.items()}
+        except (ValueError, KeyError, ValidationError, TypeError, AttributeError) as exc:
             raise ClassifierUnavailable("jev unparseable response") from exc
-        return {qid: Judgement(**j) for qid, j in data.items()}
 
 
 async def decide_with_retry(classifier: Classifier, state: str, questions: dict[str, str],

@@ -55,6 +55,14 @@ def test_metrics_p50_p95():
     assert m.summary()["total_questions"] == 10
 
 
+def test_jev_invalid_shape_raises_classifier_unavailable():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"judgements": {"q1": {"p": None, "confidence": 0.5, "distribution": {}}}})
+
+    with pytest.raises(ClassifierUnavailable):
+        asyncio.run(_mk(handler).decide("s", {"q1": "Python?"}))
+
+
 def test_decide_with_retry_recovers_after_one_failure():
     calls = {"n": 0}
 

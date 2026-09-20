@@ -1,6 +1,6 @@
 import pytest
 from pydantic import ValidationError
-from app.models.classifier import Judgement, ScreenQuestion, Classifier, ClassifierUnavailable
+from app.models.classifier import Judgement, ScreenQuestion, Classifier, ClassifierUnavailable  # noqa: F401
 
 
 def test_judgement_valid():

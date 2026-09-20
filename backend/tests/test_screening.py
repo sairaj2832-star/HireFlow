@@ -49,3 +49,27 @@ def test_run_screen_unknown_job_raises(tmp_path):
     with pytest.raises(ValueError):
         asyncio.run(run_screen("job_none", db_path=tmp_path / "t.db",
                                journal_path=tmp_path / "j.jsonl"))
+
+
+def test_run_screen_verification_is_per_requirement(tmp_path):
+    from app.db.ledger_store import LedgerStore
+    kwargs = {"db_path": tmp_path / "t.db", "journal_path": tmp_path / "j.jsonl"}
+    ingest_jd("job_pr", "run_pr", b"- Python\n- FastAPI", "jd.txt", "text/plain", **kwargs)
+    ingest_resume("job_pr", "run_pr", "cand_pr",
+                  b"Skills: Python\nExperience: 3 years", "cv.txt", "text/plain", **kwargs)
+    res = asyncio.run(run_screen("job_pr", **kwargs))
+    store = LedgerStore(**kwargs)
+    events = [e for e in store.get_events()
+              if e.get("candidate_id") == "cand_pr"
+              and e.get("type") in ("VERIFICATION_PASSED", "VERIFICATION_FAILED")]
+    by_req = {e["requirement_id"]: e for e in events}
+    assert set(by_req) == {"REQ-01", "REQ-02"}
+    assert by_req["REQ-01"]["type"] == "VERIFICATION_PASSED"
+    assert by_req["REQ-02"]["type"] == "VERIFICATION_FAILED"
+    assert by_req["REQ-02"]["method"] == "absent_span"
+    assert by_req["REQ-02"]["ratio"] is None
+    assert by_req["REQ-01"]["ratio"] != by_req["REQ-02"]["ratio"]
+    cand = next(c for c in res["candidates"] if c["candidate_id"] == "cand_pr")
+    assert cand["verified_spans"] == 1
+    assert cand["failed_spans"] == 0
+    assert cand["absent_spans"] == 1

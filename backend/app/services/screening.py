@@ -107,12 +107,25 @@ async def run_screen(job_id: str, db_path: Union[Path, None] = None,
             })
 
         composed = policy_svc.compose(per_req_judgements, reqs, pol)
+        req_texts = {r.id: r.text for r in reqs}
+        candidate_spans = spans_by_candidate.get(cid) or []
         verified_spans = 0
         failed_spans = 0
+        absent_spans = 0
         for v in composed["per_req"]:
-            quote = (spans_by_candidate.get(cid) or [""])[0]
-            vr = verify_quote(quote or v["requirement_id"], text, pol.brakes.fuzzy_ratio)
             total_checked += 1
+            # per-requirement verification (human ruling): the requirement's OWN spans
+            # are the candidate quotes that mention its text; a requirement with no such
+            # span is MISSING evidence, never a fabricated "REQ-xx" fidelity comparison.
+            own = [q for q in candidate_spans
+                   if (req_texts.get(v["requirement_id"]) or "").lower() in q.lower()]
+            if not own:
+                absent_spans += 1
+                store.append({"type": VERIFY_FAIL, "id": _sid("v"), "run_id": run_id,
+                              "candidate_id": cid, "requirement_id": v["requirement_id"],
+                              "method": "absent_span", "ratio": None, "policy_hash": phash})
+                continue
+            vr = verify_quote(own[0], text, pol.brakes.fuzzy_ratio)
             if vr["pass"]:
                 verified_spans += 1
                 total_verified += 1
@@ -130,13 +143,13 @@ async def run_screen(job_id: str, db_path: Union[Path, None] = None,
             "job_id": job_id, "candidate_id": cid, "composite": composed["composite"],
             "tier": composed["tier"], "needs_review": composed["needs_review"],
             "verified_spans": verified_spans, "failed_spans": failed_spans,
-            "anomaly": anomaly, "policy_hash": phash,
+            "absent_spans": absent_spans, "anomaly": anomaly, "policy_hash": phash,
         })
         screen_candidates.append({
             "candidate_id": cid, "tier": composed["tier"], "composite": composed["composite"],
             "needs_review": composed["needs_review"], "per_req": composed["per_req"],
             "verified_spans": verified_spans, "failed_spans": failed_spans,
-            "anomaly": anomaly, "policy_hash": phash,
+            "absent_spans": absent_spans, "anomaly": anomaly, "policy_hash": phash,
         })
 
     cohorts = build_cohorts(screen_candidates, job_id, pol.version)

@@ -22,12 +22,52 @@ def _latest_screen(candidate_id: str) -> dict[str, Any] | None:
     return {"run_id": run_id, "job_id": job_id, "candidate": cand}
 
 
-def _evidence_boxes(cand: dict[str, Any]) -> list[dict[str, Any]]:
-    boxes = []
+def _ledger_spans(candidate_id: str) -> list[dict[str, Any]]:
+    from app.db.ledger_store import LedgerStore
+    store = LedgerStore()
+    return [e for e in store.get_events()
+            if e.get("type") == "EVIDENCE_SPAN_MAPPED"
+            and e.get("candidate_id") == candidate_id]
+
+
+def _requirement_texts(job_id: str) -> dict[str, str]:
+    from app.db.ledger_store import LedgerStore
+    store = LedgerStore()
+    out: dict[str, str] = {}
+    for e in store.get_events():
+        if e.get("type") == "REQUIREMENT_DEFINED" and e.get("job_id") == job_id:
+            rid = e.get("id")
+            if rid:
+                out[rid] = e.get("text", "")
+    return out
+
+
+def _evidence_boxes(cand: dict[str, Any], job_id: str) -> list[dict[str, Any]]:
+    spans = _ledger_spans(cand["candidate_id"] if "candidate_id" in cand else "")
+    req_texts = _requirement_texts(job_id)
+    boxes: list[dict[str, Any]] = []
     for v in cand["per_req"]:
+        rid = v["requirement_id"]
+        matched = ""
+        page = 1
+        line = 1
+        for s in spans:
+            if s.get("quote"):
+                if (req_texts.get(rid, "") and req_texts[rid].lower() in s["quote"].lower()) \
+                        or (rid in s.get("quote", "")):
+                    matched = s["quote"]
+                    loc = s.get("loc", {})
+                    page = loc.get("page", 1) or 1
+                    line = loc.get("line_start", 1) or 1
+                    break
+        if not matched:
+            matched = spans[0]["quote"] if spans else "verified quote"
+            loc = spans[0].get("loc", {}) if spans else {}
+            page = loc.get("page", 1) or 1
+            line = loc.get("line_start", 1) or 1
         boxes.append({
-            "req": v["requirement_id"],
-            "span": {"quote": "verified quote", "page": 1, "line": 1},
+            "req": rid,
+            "span": {"quote": matched[:600], "page": page, "line": line},
             "judgment": {"p": v["p"], "confidence": v["confidence"], "grade": v["grade"]},
             "state": "VERIFIED" if v.get("needs_review") is False else "NEEDS_REVIEW",
             "conf": v["confidence"],
@@ -53,7 +93,27 @@ def get_evidence(candidate_id: str) -> dict[str, Any]:
     if hit is None:
         raise HTTPException(404, "candidate not screened")
     return {"candidate_id": candidate_id, "run_id": hit["run_id"],
-            "boxes": _evidence_boxes(hit["candidate"])}
+            "boxes": _evidence_boxes(hit["candidate"], hit["job_id"])}
+
+
+@router.get("/{candidate_id}/questions")
+def get_questions(candidate_id: str) -> dict[str, Any]:
+    hit = _latest_screen(candidate_id)
+    if hit is None:
+        raise HTTPException(404, "candidate not found")
+    from app.db.ledger_store import LedgerStore
+    store = LedgerStore()
+    questions: list[dict[str, str]] = []
+    for e in store.get_events():
+        if e.get("type") == "QUESTION_GENERATED" and e.get("candidate_id") == candidate_id:
+            for q in e.get("questions", []):
+                questions.append({
+                    "question_id": q.get("question_id", ""),
+                    "requirement_id": q.get("requirement_id", ""),
+                    "gap_text": q.get("gap_text", ""),
+                    "question": q.get("question", ""),
+                })
+    return {"candidate_id": candidate_id, "questions": questions}
 
 
 @router.post("/{candidate_id}/questions")

@@ -221,7 +221,7 @@ def _spans_by_requirement(
     events: list[dict[str, Any]],
     requirement_text: Mapping[str, str],
 ) -> dict[str, list[dict[str, Any]]]:
-    out = {requirement_id: [] for requirement_id in requirement_text}
+    out: dict[str, list[dict[str, Any]]] = {requirement_id: [] for requirement_id in requirement_text}
     for event in events:
         if event.get("type") != "EVIDENCE_SPAN_MAPPED" or event.get("candidate_id") != candidate_id:
             continue

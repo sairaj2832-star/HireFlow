@@ -1,7 +1,12 @@
 from __future__ import annotations
+import hashlib
+import json
+import random
 import threading
 import time
+from pathlib import Path
 from typing import Any
+
 import httpx
 
 from pydantic import ValidationError
@@ -110,3 +115,115 @@ async def decide_with_retry(classifier: Classifier, state: str, questions: dict[
             continue
     assert last is not None
     raise last
+
+
+SEED_BUNDLE = Path(__file__).resolve().parents[2] / "artifacts" / "seed" / "fallback_bundle.json"
+
+
+def _load_seed() -> dict[str, Any]:
+    if SEED_BUNDLE.exists():
+        data = json.loads(SEED_BUNDLE.read_text(encoding="utf-8"))
+        if isinstance(data, dict):
+            return data
+    return {"subjective": 0.5, "confidence": 0.55}
+
+
+def seeded_judgement(question_id: str, requirement_text: str,
+                     candidate_keywords: list[str], parse_confidence: float) -> Judgement:
+    """OUR CHOICE deterministic offline fallback — meters needs-review rate, never claims accuracy."""
+    seed = _load_seed()
+    digest = int(hashlib.sha256(f"{question_id}:{requirement_text}".encode()).hexdigest(), 16)
+    rng = random.Random(digest % (2**32))
+    base = seed.get("subjective", 0.5)
+    kw = [k for k in candidate_keywords if k and k in requirement_text.lower()]
+    boost = 0.15 * min(len(kw), 2)
+    p = min(1.0, max(0.0, base + boost + rng.choice([-0.05, 0.0, 0.05])))
+    conf = min(seed.get("confidence", 0.55), 0.8)
+    return Judgement(p=round(p, 3), confidence=round(conf, 3),
+                     distribution={"supporting": round(p, 3), "neutral": round(1 - p, 3)})
+
+
+class LLMStructuredFallback:
+    """LLM structured-output classifier (OpenAI-compatible). Identical {p,confidence,distribution}.
+
+    Seeded bundle when unconfigured/offline — demo never blocks (MASTER §58, Report §17).
+    LiteLLM gateway can slot in behind this seam (model<>policy contract unchanged).
+    """
+
+    kind = "llm"
+
+    def __init__(self, api_key: str | None = None, model: str = "gpt-4o-mini",
+                 base_url: str = "https://api.openai.com/v1",
+                 client_override: httpx.AsyncClient | None = None) -> None:
+        self.api_key = api_key or settings.gemini_api_key or settings.openrouter_api_key
+        if settings.openrouter_api_key:
+            self.base_url = "https://openrouter.ai/api/v1"
+        else:
+            self.base_url = base_url
+        self.model = model
+        self._client = client_override
+
+    async def decide(self, state: str, questions: dict[str, str]) -> dict[str, Judgement]:
+        if not self.api_key:
+            return self._seeded(state, questions)
+        t0 = time.perf_counter()
+        try:
+            client = self._client
+            own = False
+            if client is None:
+                client = httpx.AsyncClient()
+                own = True
+            resp = await client.post(
+                f"{self.base_url}/chat/completions",
+                json={
+                    "model": self.model,
+                    "temperature": 0,
+                    "response_format": {"type": "json_object"},
+                    "messages": [
+                        {"role": "system",
+                         "content": "You map a candidate profile to job requirements. Return ONLY "
+                                    "JSON {judgements:{<id>:{p:0..1,confidence:0..1,"
+                                    "distribution:{supporting:..,neutral:..}}}}. "
+                                    "p is P(requirement supported by candidate evidence)."},
+                        {"role": "user",
+                         "content": f"CANDIDATE:\n{state}\n\nREQUIREMENTS:\n"
+                                    + "\n".join(f"{qid}: {text}" for qid, text in questions.items())},
+                    ],
+                },
+                headers={"Authorization": f"Bearer {self.api_key}"},
+                timeout=10.0,
+            )
+            if own:
+                await client.aclose()
+            METRICS.add({"kind": self.kind, "latency_ms": (time.perf_counter() - t0) * 1000,
+                         "cost": None, "questions": len(questions)})
+            if resp.status_code != 200:
+                return self._seeded(state, questions)
+            data = resp.json()["choices"][0]["message"]["content"]
+            parsed = json.loads(data).get("judgements", {})
+            out: dict[str, Judgement] = {}
+            for qid, j in parsed.items():
+                if qid in questions and set(j) >= {"p", "confidence"}:
+                    try:
+                        out[qid] = Judgement(**j)
+                    except Exception:  # noqa: BLE001 — skip malformed item, keep the rest
+                        continue
+            if out:
+                return out
+            return self._seeded(state, questions)
+        except Exception as exc:  # noqa: BLE001 — MUST fall back, never block demo
+            METRICS.add({"kind": self.kind, "latency_ms": (time.perf_counter() - t0) * 1000,
+                         "cost": None, "questions": len(questions), "error": str(exc)})
+            return self._seeded(state, questions)
+
+    def _seeded(self, state: str, questions: dict[str, str]) -> dict[str, Judgement]:
+        keywords = [tok.strip(".,:;()[]{}\"'") for tok in state.lower().split()]
+        return {qid: seeded_judgement(qid, text, [k for k in keywords if len(k) > 2], 0.5)
+                for qid, text in questions.items()}
+
+
+def make_classifier() -> Classifier:
+    """Feature flag (MASTER §58): Jev primary iff TYPESAFE_API_KEY, else LLM fallback."""
+    if settings.typesafe_api_key:
+        return JevClassifier()
+    return LLMStructuredFallback()

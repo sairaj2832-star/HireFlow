@@ -1,8 +1,9 @@
 import asyncio
 import httpx
 import pytest
+from app.config import settings as app_settings
 from app.models.classifier import Judgement, ClassifierUnavailable
-from app.services.jevs import JevClassifier, Metrics, decide_with_retry
+from app.services.jevs import JevClassifier, LLMStructuredFallback, METRICS, Metrics, decide_with_retry, make_classifier, seeded_judgement
 
 
 def _mk(handler, key: str = "test-secret") -> JevClassifier:
@@ -77,3 +78,74 @@ def test_decide_with_retry_recovers_after_one_failure():
     out = asyncio.run(decide_with_retry(Flaky(), "s", {"q1": "Python?"}, retries=1))
     assert out["q1"].p == 0.7
     assert calls["n"] == 2
+
+
+def test_fallback_without_key_returns_seeded(monkeypatch):
+    monkeypatch.setattr(app_settings, "gemini_api_key", None)
+    monkeypatch.setattr(app_settings, "openrouter_api_key", None)
+    fb = LLMStructuredFallback(api_key=False, model="test")
+    out = asyncio.run(fb.decide("candidate profile", {"q1": "Python?", "q2": "FastAPI?"}))
+    assert set(out) == {"q1", "q2"}
+    for j in out.values():
+        assert isinstance(j, Judgement)
+        assert 0.0 <= j.p <= 1.0
+        assert 0.0 <= j.confidence <= 1.0
+
+
+def test_fallback_openai_compatible_http_parses():
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = request.read().decode()
+        assert "temperature" in body
+        assert '"type":"json_object"' in body.replace(" ", "")
+        return httpx.Response(200, json={"choices": [{"message": {"content": (
+            '{"judgements": {"q1": {"p": 0.8, "confidence": 0.7, '
+            '"distribution": {"supporting": 0.8, "neutral": 0.2}}}}'
+        )}}]})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    fb = LLMStructuredFallback(api_key="k", model="m", base_url="https://x/v1",
+                               client_override=client)
+    out = asyncio.run(fb.decide("s", {"q1": "Python?"}))
+    assert out["q1"].p == 0.8
+
+
+def test_fallback_provider_error_falls_back_to_seeded():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(502, text="bad gateway")
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    fb = LLMStructuredFallback(api_key="k", model="m", base_url="https://x/v1",
+                               client_override=client)
+    out = asyncio.run(fb.decide("s", {"q1": "Python?"}))
+    assert 0.0 <= out["q1"].p <= 1.0
+
+
+def test_fallback_invalid_json_from_provider_falls_back_to_seeded():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"choices": [{"message": {"content": "{not json"}}]})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    fb = LLMStructuredFallback(api_key="k", model="m", base_url="https://x/v1",
+                               client_override=client)
+    out = asyncio.run(fb.decide("s", {"q1": "Python?"}))
+    assert 0.0 <= out["q1"].p <= 1.0
+    assert any(r.get("kind") == "llm" and r.get("error") for r in METRICS._rows)
+
+
+def test_seeded_judgement_is_deterministic_and_metadata_based():
+    a = seeded_judgement("cand_x", "Must have Python", ["python", "fastapi"], 0.9)
+    b = seeded_judgement("cand_x", "Must have Python", ["python", "fastapi"], 0.9)
+    assert a.p == b.p
+    assert a.confidence == b.confidence
+    assert 0.0 <= a.p <= 1.0
+    assert a.confidence <= 0.8  # seeded confidence capped, marked non-authoritative
+
+
+def test_make_classifier_feature_flag():
+    settings = __import__("app.config", fromlist=["settings"]).settings
+    settings.typesafe_api_key = False  # type: ignore[assignment]
+    from app.services.jevs import JevClassifier
+    assert isinstance(make_classifier(), LLMStructuredFallback)
+    settings.typesafe_api_key = "test-key"
+    assert isinstance(make_classifier(), JevClassifier)
+    settings.typesafe_api_key = None

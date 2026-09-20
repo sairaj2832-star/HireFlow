@@ -11,6 +11,7 @@ hireflow.db
 hireflow.db-*
 backend/artifacts/journal.jsonl
 backend/artifacts/*.db
+backend/artifacts/uploads/
 !backend/artifacts/seed/.gitkeep
 
 # node

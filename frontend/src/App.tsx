@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Route, Routes } from "react-router-dom";
 import { health } from "./lib/api";
+import { IntakePage } from "./pages/IntakePage";
 
 function Placeholder({ name }: { name: string }) {
   return <h1>{name}</h1>;
@@ -26,10 +27,10 @@ export default function App() {
   return (
     <div className="p-4">
       <header className="mb-4">
-        <span className="text-sm text-gray-600">HireFlow B0 — backend: {backend}</span>
+        <span className="text-sm text-gray-600">HireFlow B1 — backend: {backend}</span>
       </header>
       <Routes>
-        <Route path="/" element={<Placeholder name="dashboard" />} />
+        <Route path="/" element={<IntakePage />} />
         <Route path="/jd" element={<Placeholder name="jd" />} />
         <Route path="/candidates/:id" element={<Placeholder name="candidate-detail" />} />
         <Route path="/interview" element={<Placeholder name="interview" />} />
